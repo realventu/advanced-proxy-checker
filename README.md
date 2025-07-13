@@ -1,5 +1,5 @@
 
-# 🔥 Advanced Proxy Checker
+# 🎆 Advanced Proxy Checker
 
 ────────────────────────────
 
@@ -94,6 +94,4 @@ SOCKS5:
 Discord → https://discord.gg/ACNUaHbF
 
 ────────────────────────────
-
-Made with 💻 for proxy enthusiasts.
 ```
