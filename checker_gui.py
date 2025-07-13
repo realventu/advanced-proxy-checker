@@ -98,6 +98,29 @@ COUNTRY_CONTINENT = {
 
 CONTINENTS = ["Africa", "Americas", "Asia", "Europe", "Oceania", "Antarctica"]
 # load/create config
+def load_default_config(self):
+    self.config = {
+        "sources": {
+            "http": [
+                "https://api.proxyscrape.com/v2/?request=getproxies&protocol=http",
+                "https://raw.githubusercontent.com/MuRongPIG/Proxy-Master/main/http.txt"
+            ],
+            "socks4": [
+                "https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks4",
+                "https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks4.txt"
+            ],
+            "socks5": [
+                "https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks5",
+                "https://raw.githubusercontent.com/hookzof/socks5_list/master/proxy.txt"
+            ]
+        },
+        "anonymize": False,
+        "custom_test_url": "https://httpbin.org/ip"
+    }
+    # Save it for future runs
+    with open('config.json', 'w') as f:
+        json.dump(self.config, f, indent=4)
+
 def load_config():
     default_config = {
         "sources": {
@@ -418,45 +441,51 @@ class ProxyCheckerGUI:
             self.log(f"📂 Loaded {len(self.proxies)} proxies from file.", INFO_COLOR)
 
     def fetch_online(self):
-        if self.running:
-            messagebox.showwarning("Warning", "Please stop checking first.")
+        try:
+            # Add this config validation
+            if not hasattr(self, 'config') or 'sources' not in self.config:
+                self.load_default_config()
+                
+            proxy_type = self.proxy_type_var.get()
+            scheme = PROXY_TYPES[proxy_type]
+            sources = self.config['sources'].get(scheme, [])
+            
+            if not sources:
+                self.log("⚠️ No sources configured for this proxy type.", WARNING_COLOR)
+                return
+                
+            self.log("🌐 Fetching proxies online...", INFO_COLOR)
+            
+            all_proxies = []
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                future_to_url = {executor.submit(fetch_proxies_from_source, url): url for url in sources}
+                
+                try:
+                    for future in as_completed(future_to_url):
+                        url = future_to_url[future]
+                        try:
+                            proxies = future.result()
+                            if proxies:
+                                all_proxies.extend(proxies)
+                                self.log(f"✓ Fetched {len(proxies)} proxies from {url}", GOOD_COLOR)
+                            else:
+                                self.log(f"⚠️ No proxies from {url}", WARNING_COLOR)
+                        except Exception as e:
+                            self.log(f"⚠️ Failed to fetch from {url}: {str(e)}", BAD_COLOR)
+                            
+                except Exception as e:
+                    self.log(f"⚠️ Critical error during fetch: {str(e)}", BAD_COLOR)
+                    
+        except Exception as e:
+            self.log(f"⚠️ Initialization error: {str(e)}", BAD_COLOR)
             return
             
-        proxy_type = self.proxy_type_var.get()
-        scheme = PROXY_TYPES[proxy_type]
-        sources = self.config['sources'].get(scheme, [])
-        
-        if not sources:
-            self.log("⚠️ No sources configured for this proxy type.", WARNING_COLOR)
-            return
-            
-        self.log("🌐 Fetching proxies online...", INFO_COLOR)
-        
-        all_proxies = []
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            future_to_url = {executor.submit(fetch_proxies_from_source, url): url for url in sources}
-            
-            try:
-                for future in as_completed(future_to_url):
-                    url = future_to_url[future]
-                    try:
-                        proxies = future.result()
-                        if proxies:
-                            all_proxies.extend(proxies)
-                            self.log(f"✓ Fetched {len(proxies)} proxies from {url}", GOOD_COLOR)
-                        else:
-                            self.log(f"⚠️ No proxies from {url}", WARNING_COLOR)
-                    except Exception as e:
-                        self.log(f"⚠️ Failed to fetch from {url}: {str(e)}", BAD_COLOR)
-                        
-            except Exception as e:
-                self.log(f"⚠️ Critical error during fetch: {str(e)}", BAD_COLOR)
-            finally:
-                if all_proxies:
-                    self.proxies = list(set(all_proxies))  # Remove duplicates
-                    self.log(f"🌐 Total fetched: {len(self.proxies)} proxies", INFO_COLOR)
-                else:
-                    self.log("⚠️ Failed to fetch any proxies online.", WARNING_COLOR)
+        finally:
+            if all_proxies:
+                self.proxies = list(set(all_proxies))  # Remove duplicates
+                self.log(f"🌐 Total fetched: {len(self.proxies)} proxies", INFO_COLOR)
+            else:
+                self.log("⚠️ Failed to fetch any proxies online.", WARNING_COLOR)
 
     def start_check(self):
         if self.running:
@@ -712,6 +741,32 @@ class ProxyCheckerGUI:
 if __name__ == '__main__':
     root = tk.Tk()
     
+    config = {}
+    try:
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+    except:
+        config = {
+            "sources": {
+                "http": [
+                    "https://api.proxyscrape.com/v2/?request=getproxies&protocol=http",
+                    "https://raw.githubusercontent.com/MuRongPIG/Proxy-Master/main/http.txt"
+                ],
+                "socks4": [
+                    "https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks4",
+                    "https://raw.githubusercontent.com/TheSpeedX/SOCKS-List/master/socks4.txt"
+                ],
+                "socks5": [
+                    "https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks5",
+                    "https://raw.githubusercontent.com/hookzof/socks5_list/master/proxy.txt"
+                ]
+            },
+            "anonymize": False,
+            "custom_test_url": "https://httpbin.org/ip"
+        }
+        with open('config.json', 'w') as f:
+            json.dump(config, f, indent=4)
+    
     try:
         root.iconbitmap('proxy.ico')
     except:
@@ -727,4 +782,6 @@ if __name__ == '__main__':
     style.map('TNotebook.Tab', background=[('selected', DARK_HIGHLIGHT)])
     
     app = ProxyCheckerGUI(root)
+    app.config = config
+    
     root.mainloop()
