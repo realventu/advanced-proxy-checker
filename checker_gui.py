@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 from concurrent.futures import ThreadPoolExecutor, as_completed, wait, FIRST_COMPLETED
 
 
-# Settings
+# setts
 MAX_THREADS = 100  
 TIMEOUT = 10 
 MAX_WORKERS = 10
@@ -24,11 +24,11 @@ today = datetime.datetime.now().strftime('%Y-%m-%d')
 result_dir = os.path.join('results', today)
 os.makedirs(result_dir, exist_ok=True)
 
-# Configuration files
+# cfg
 CONFIG_FILE = "config.json"
 SOURCES_FILE = "sources.json"
 
-# Colors
+# colors
 DARK_BG = "#2e2e2e"
 DARK_FG = "#eaeaea"
 DARK_BTN_BG = "#444444"
@@ -42,7 +42,7 @@ BAD_COLOR = "#F44336"
 WARNING_COLOR = "#FFC107"
 INFO_COLOR = "#2196F3"
 
-# Country to continent mapping
+# countries etc
 COUNTRY_CONTINENT = {
     'AF': 'Africa', 'AX': 'Europe', 'AL': 'Europe', 'DZ': 'Africa', 'AS': 'Oceania',
     'AD': 'Europe', 'AO': 'Africa', 'AI': 'Americas', 'AQ': 'Antarctica', 'AG': 'Americas',
@@ -97,7 +97,7 @@ COUNTRY_CONTINENT = {
 }
 
 CONTINENTS = ["Africa", "Americas", "Asia", "Europe", "Oceania", "Antarctica"]
-# Load or create config
+# load/create config
 def load_config():
     default_config = {
         "sources": {
@@ -145,10 +145,10 @@ def save_config(config):
     with open(CONFIG_FILE, 'w') as f:
         json.dump(config, f, indent=4)
 
-# Initialize config
+# ini config
 config = load_config()
 
-# --- Proxy Testing ---
+# proxy test
 def check_proxy_speed(proxy, proxy_type, stop_event, test_url=None):
     if stop_event.is_set():
         return proxy, None, None, None
@@ -198,7 +198,7 @@ def save_selected_continents_files(good_proxies, proxy_type, selected_continents
     if count == 0:
         output_callback("⚠️ No proxies matched the selected continents for separate saving.", WARNING_COLOR)
 
-# --- Proxy Fetch ---
+# fetch proxies
 def fetch_proxies_from_source(url):
     try:
         response = requests.get(url, timeout=10)
@@ -208,7 +208,7 @@ def fetch_proxies_from_source(url):
         print(f"Error fetching from {url}: {str(e)}")
     return []
 
-# --- Main Check ---
+# checking
 def start_checking(proxies, proxy_type, output_callback, after_check_callback, 
                   stop_event, progress_callback=None, test_url=None, anonymize=False):
     unique_proxies = list(set([p.strip() for p in proxies if p.strip()]))
@@ -228,14 +228,12 @@ def start_checking(proxies, proxy_type, output_callback, after_check_callback,
     output_callback(f"🔍 Checking {total} proxies ({proxy_type})...\n", INFO_COLOR)
 
     with ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
-        # Tworzymy słownik futures
         future_to_proxy = {executor.submit(check_proxy_speed, proxy, proxy_type, stop_event, test_url): proxy 
                          for proxy in unique_proxies}
         
         try:
             while future_to_proxy and not stop_event.is_set():
                 try:
-                    # Czekamy na ukończenie części futures
                     done, not_done = wait(future_to_proxy.keys(), timeout=30, return_when=FIRST_COMPLETED)
                     
                     if not done:
@@ -266,7 +264,6 @@ def start_checking(proxies, proxy_type, output_callback, after_check_callback,
                             output_callback(f"[!] Error checking {proxy}: {str(e)}", WARNING_COLOR)
                             stats['bad'] += 1
                             
-                    # Aktualizujemy słownik futures
                     future_to_proxy = {f: p for f, p in future_to_proxy.items() if f in not_done}
                     
                 except Exception as e:
@@ -279,7 +276,6 @@ def start_checking(proxies, proxy_type, output_callback, after_check_callback,
             else:
                 output_callback("\n✅ All proxies processed", INFO_COLOR)
 
-    # Oblicz statystyki
     if stats['good'] > 0:
         stats['avg_speed'] = sum(stats['speeds']) // len(stats['speeds'])
         stats['min_speed'] = min(stats['speeds'])
@@ -291,7 +287,6 @@ def start_checking(proxies, proxy_type, output_callback, after_check_callback,
     
     save_master_file(good_proxies, proxy_type)
     
-    # Zapisz złe proxy
     bad_file = os.path.join(result_dir, f'BadProxies_{proxy_type.replace("/", "_")}.txt')
     with open(bad_file, 'w') as f:
         f.writelines(f"{proxy}\n" for proxy in bad_proxies)
@@ -350,30 +345,24 @@ class ProxyCheckerGUI:
         tk.Button(btn_frame, text="Settings", command=self.open_settings, 
                  bg=DARK_BTN_BG, fg=DARK_BTN_FG).pack(side='left', expand=True, fill='x', padx=2)
         
-        # Progress Frame
         progress_frame = tk.Frame(root, bg=DARK_BG)
         progress_frame.grid(row=2, column=0, sticky='ew', padx=10, pady=5)
         
-        # Progress Bar
         self.progress_var = tk.DoubleVar()
         self.progress_bar = ttk.Progressbar(progress_frame, variable=self.progress_var, 
                                            maximum=100, style="dark.Horizontal.TProgressbar")
         self.progress_bar.pack(fill='x', pady=2)
         
-        # Progress Label
         self.progress_label = tk.Label(progress_frame, text="Ready", bg=DARK_BG, fg=DARK_FG)
         self.progress_label.pack(fill='x')
         
-        # Stats Label
         self.stats_label = tk.Label(progress_frame, text="", bg=DARK_BG, fg=INFO_COLOR)
         self.stats_label.pack(fill='x')
         
-        # Output Text Box
         self.output = scrolledtext.ScrolledText(root, bg=DARK_TEXT_BG, fg=DARK_FG, 
                                               insertbackground=DARK_FG, wrap=tk.WORD)
         self.output.grid(row=3, column=0, sticky='nsew', padx=10, pady=5)
         
-        # Configure style for dark mode progress bar
         style = ttk.Style()
         style.theme_use('default')
         style.configure("dark.Horizontal.TProgressbar", 
@@ -383,7 +372,6 @@ class ProxyCheckerGUI:
                         lightcolor=DARK_PROGRESS,
                         darkcolor=DARK_PROGRESS)
         
-        # Status Bar
         self.status_var = tk.StringVar(value="Ready")
         status_bar = tk.Label(root, textvariable=self.status_var, bd=1, relief=tk.SUNKEN, 
                              anchor=tk.W, bg=DARK_BG, fg=DARK_FG)
@@ -396,7 +384,7 @@ class ProxyCheckerGUI:
         self.output.insert(tk.END, msg + "\n", color)
         self.output.see(tk.END)
         self.output.configure(state='disabled')
-        self.status_var.set(msg[:100])  # Show first 100 chars in status bar
+        self.status_var.set(msg[:100])  
 
     def update_progress(self, current, total, stats=None):
         percent = (current / total) * 100
@@ -446,7 +434,6 @@ class ProxyCheckerGUI:
         
         all_proxies = []
         with ThreadPoolExecutor(max_workers=5) as executor:
-            # Create a future to URL mapping
             future_to_url = {executor.submit(fetch_proxies_from_source, url): url for url in sources}
             
             try:
@@ -542,7 +529,7 @@ class ProxyCheckerGUI:
         self.good_proxies = good_proxies
         self.stats = stats
         
-        # Show stats
+        # stats
         self.log("\n📊 Statistics:", INFO_COLOR)
         self.log(f"✅ Good proxies: {stats['good']}", GOOD_COLOR)
         self.log(f"❌ Bad proxies: {stats['bad']}", BAD_COLOR)
@@ -555,7 +542,6 @@ class ProxyCheckerGUI:
             for country, count in sorted(stats['countries'].items(), key=lambda x: x[1], reverse=True):
                 self.log(f"{country}: {count}", INFO_COLOR)
         
-        # Ask user which continents to save individually
         self.ask_continents(proxy_type)
 
     def reset_ui(self):
@@ -570,14 +556,12 @@ class ProxyCheckerGUI:
         popup.title("Save Options")
         popup.configure(bg=DARK_BG)
         
-        # Main frame
         main_frame = tk.Frame(popup, bg=DARK_BG)
         main_frame.pack(padx=10, pady=10)
         
         tk.Label(main_frame, text="Select continents for individual proxy files:", 
                 bg=DARK_BG, fg=DARK_FG).pack(anchor='w', pady=5)
 
-        # Checkbox frame
         check_frame = tk.Frame(main_frame, bg=DARK_BG)
         check_frame.pack(fill='x', padx=10)
         
@@ -589,7 +573,6 @@ class ProxyCheckerGUI:
             cb.grid(row=i//3, column=i%3, sticky='w', padx=5, pady=2)
             vars[cont] = var
 
-        # Button frame
         btn_frame = tk.Frame(main_frame, bg=DARK_BG)
         btn_frame.pack(fill='x', pady=10)
         
@@ -619,24 +602,20 @@ class ProxyCheckerGUI:
         popup.title("Check Statistics")
         popup.configure(bg=DARK_BG)
         
-        # Main frame
         main_frame = tk.Frame(popup, bg=DARK_BG)
         main_frame.pack(padx=10, pady=10)
         
-        # Stats labels
         tk.Label(main_frame, text="📊 Proxy Check Statistics", 
                 bg=DARK_BG, fg=INFO_COLOR, font=('Arial', 12, 'bold')).pack(pady=5)
         
         stats_frame = tk.Frame(main_frame, bg=DARK_BG)
         stats_frame.pack(fill='x', padx=10, pady=5)
         
-        # Good/Bad stats
         tk.Label(stats_frame, text=f"✅ Good Proxies: {stats['good']}", 
                 bg=DARK_BG, fg=GOOD_COLOR, anchor='w').pack(fill='x')
         tk.Label(stats_frame, text=f"❌ Bad Proxies: {stats['bad']}", 
                 bg=DARK_BG, fg=BAD_COLOR, anchor='w').pack(fill='x')
         
-        # Speed stats
         tk.Label(stats_frame, text=f"⏱️ Average Speed: {stats.get('avg_speed', 0)}ms", 
                 bg=DARK_BG, fg=INFO_COLOR, anchor='w').pack(fill='x')
         tk.Label(stats_frame, text=f"🚀 Fastest Proxy: {stats.get('min_speed', 0)}ms", 
@@ -644,7 +623,6 @@ class ProxyCheckerGUI:
         tk.Label(stats_frame, text=f"🐢 Slowest Proxy: {stats.get('max_speed', 0)}ms", 
                 bg=DARK_BG, fg=BAD_COLOR, anchor='w').pack(fill='x')
         
-        # Countries stats
         if stats['countries']:
             tk.Label(stats_frame, text=f"🌍 Countries: {len(stats['countries'])}", 
                     bg=DARK_BG, fg=INFO_COLOR, anchor='w').pack(fill='x')
@@ -653,11 +631,10 @@ class ProxyCheckerGUI:
             countries_frame.pack(fill='x', pady=5)
             
             for i, (country, count) in enumerate(sorted(stats['countries'].items(), key=lambda x: x[1], reverse=True)):
-                if i < 5:  # Show top 5 countries
+                if i < 5:
                     tk.Label(countries_frame, text=f"{country}: {count}", 
                             bg=DARK_BG, fg=DARK_FG, anchor='w').pack(fill='x')
         
-        # Close button
         tk.Button(main_frame, text="Close", command=popup.destroy, 
                  bg=DARK_BTN_BG, fg=DARK_BTN_FG).pack(pady=10)
         
@@ -677,36 +654,29 @@ class ProxyCheckerGUI:
         popup.title("Settings")
         popup.configure(bg=DARK_BG)
         
-        # Main frame
         main_frame = tk.Frame(popup, bg=DARK_BG)
         main_frame.pack(padx=10, pady=10)
         
-        # Sources Notebook
         notebook = ttk.Notebook(main_frame)
         notebook.pack(fill='both', expand=True)
         
-        # Create tabs for each proxy type
         for proxy_type, scheme in PROXY_TYPES.items():
             frame = tk.Frame(notebook, bg=DARK_BG)
             notebook.add(frame, text=proxy_type)
             
-            # Sources listbox
             sources = self.config['sources'].get(scheme, [])
             listbox = tk.Listbox(frame, bg=DARK_ENTRY_BG, fg=DARK_FG, selectbackground=DARK_HIGHLIGHT)
             for source in sources:
                 listbox.insert(tk.END, source)
             listbox.pack(side='left', fill='both', expand=True, padx=5, pady=5)
             
-            # Scrollbar
             scrollbar = tk.Scrollbar(frame, command=listbox.yview)
             scrollbar.pack(side='right', fill='y')
             listbox.config(yscrollcommand=scrollbar.set)
             
-            # Buttons frame
             btn_frame = tk.Frame(frame, bg=DARK_BG)
             btn_frame.pack(fill='x', pady=5)
             
-            # Add source button
             def add_source(scheme=scheme, listbox=listbox):
                 url = simpledialog.askstring("Add Source", "Enter proxy source URL:")
                 if url and url not in listbox.get(0, tk.END):
@@ -715,7 +685,6 @@ class ProxyCheckerGUI:
             tk.Button(btn_frame, text="Add", command=add_source, 
                      bg=DARK_BTN_BG, fg=DARK_BTN_FG).pack(side='left', expand=True, padx=2)
             
-            # Remove source button
             def remove_source(scheme=scheme, listbox=listbox):
                 selection = listbox.curselection()
                 if selection:
@@ -724,7 +693,6 @@ class ProxyCheckerGUI:
             tk.Button(btn_frame, text="Remove", command=remove_source, 
                      bg=DARK_BTN_BG, fg=DARK_BTN_FG).pack(side='left', expand=True, padx=2)
         
-        # Save button
         def save_sources():
             for i, (proxy_type, scheme) in enumerate(PROXY_TYPES.items()):
                 frame = notebook.children[notebook.tabs()[i]]
@@ -744,7 +712,6 @@ class ProxyCheckerGUI:
 if __name__ == '__main__':
     root = tk.Tk()
     
-    # Set window icon and size
     try:
         root.iconbitmap('proxy.ico')
     except:
@@ -752,7 +719,6 @@ if __name__ == '__main__':
     
     root.geometry("800x600")
     
-    # Configure style
     style = ttk.Style()
     style.theme_use('clam')
     style.configure('.', background=DARK_BG, foreground=DARK_FG)
